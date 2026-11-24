@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Expense Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">💸</span>
+      <div>
+        <h1>Expense Tracker</h1>
+        <p id="monthLabel" class="muted">Loading…</p>
+      </div>
+    </div>
+    <div class="status" id="syncStatus"><span class="dot"></span><span id="syncText">Connecting…</span></div>
+  </header>
+
+  <main class="container">
+    <div id="configBanner" class="banner hidden">
+      ⚠️ Firebase is not configured yet. Open <code>firebase-config.js</code> and paste your Firebase keys, then refresh.
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <section class="cards">
+      <article class="card stat income">
+        <div class="stat-head"><span class="chip-icon">💰</span><span>Total Monthly Income</span></div>
+        <div class="stat-value" id="incomeValue">₹0</div>
+        <div class="stat-sub" id="incomeSub">Add your income below</div>
+      </article>
+
+      <article class="card stat spent">
+        <div class="stat-head"><span class="chip-icon">🧾</span><span>Spent This Month</span></div>
+        <div class="stat-value" id="spentValue">₹0</div>
+        <div class="stat-sub" id="spentSub">1st → today</div>
+      </article>
+
+      <article class="card stat remaining" id="remainingCard">
+        <div class="stat-head"><span class="chip-icon">🏦</span><span>Remaining Balance</span></div>
+        <div class="stat-value" id="remainingValue">₹0</div>
+        <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="stat-sub" id="remainingSub">&nbsp;</div>
+      </article>
+
+      <article class="card stat last">
+        <div class="stat-head"><span class="chip-icon">📅</span><span>Last Month Spent</span></div>
+        <div class="stat-value" id="lastValue">₹0</div>
+        <div class="stat-sub" id="lastSub">&nbsp;</div>
+      </article>
+    </section>
+
+    <!-- FORMS + ANALYSIS -->
+    <section class="grid-2">
+      <div class="col">
+        <!-- ADD EXPENSE -->
+        <article class="card">
+          <h2>➕ Add Expense</h2>
+          <form id="expenseForm" autocomplete="off">
+            <label>Category
+              <input type="text" id="expCategory" list="expenseCategories" maxlength="30" placeholder="e.g. Home use, Recharge" required />
+              <datalist id="expenseCategories"></datalist>
+            </label>
+            <div class="row">
+              <label>Amount
+                <input type="number" id="expAmount" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required />
+              </label>
+              <label>Date
+                <input type="date" id="expDate" required />
+              </label>
+            </div>
+            <label>Note <span class="muted">(optional)</span>
+              <input type="text" id="expNote" maxlength="80" placeholder="What was it for?" />
+            </label>
+            <button type="submit" class="btn primary" id="expSubmit">Add Expense</button>
+          </form>
+        </article>
+
+        <!-- ADD INCOME -->
+        <article class="card">
+          <h2>💼 Monthly Income</h2>
+          <form id="incomeForm" autocomplete="off">
+            <div class="row">
+              <label>Month
+                <input type="month" id="incMonth" required />
+              </label>
+              <label>Total received
+                <input type="number" id="incAmount" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required />
+              </label>
+            </div>
+            <button type="submit" class="btn success">Save Income</button>
+            <p class="muted small">Saving again for the same month updates the amount.</p>
+          </form>
+        </article>
+      </div>
+
+      <div class="col">
+        <!-- HIGHEST / LOWEST -->
+        <div class="hl">
+          <article class="card hl-card high">
+            <div class="hl-label">🔥 Highest spending</div>
+            <div class="hl-name" id="highName">—</div>
+            <div class="hl-amount" id="highAmount"></div>
+            <div class="hl-note" id="highNote"></div>
+          </article>
+          <article class="card hl-card low">
+            <div class="hl-label">🌱 Lowest spending</div>
+            <div class="hl-name" id="lowName">—</div>
+            <div class="hl-amount" id="lowAmount"></div>
+            <div class="hl-note" id="lowNote"></div>
+          </article>
+        </div>
+
+        <!-- CHART -->
+        <article class="card">
+          <h2>📊 Spending by Category <span class="muted small">(this month)</span></h2>
+          <div class="chart-wrap">
+            <canvas id="catChart"></canvas>
+            <div class="chart-empty hidden" id="chartEmpty">No expenses yet this month</div>
+          </div>
+          <ul class="legend" id="legend"></ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- DAY BY DAY -->
+    <section class="card">
+      <div class="list-head">
+        <h2>🗓️ Day-by-Day Expenses</h2>
+        <span class="muted" id="listSummary"></span>
+      </div>
+      <div id="dayList" class="day-list"></div>
+    </section>
+  </main>
+
+  <!-- EDIT MODAL -->
+  <div class="modal hidden" id="editModal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h2>✏️ Edit Expense</h2>
+      <form id="editForm" autocomplete="off">
+        <label>Category
+          <input type="text" id="editCategory" list="expenseCategories" maxlength="30" required />
+        </label>
+        <div class="row">
+          <label>Amount
+            <input type="number" id="editAmount" min="0.01" step="0.01" inputmode="decimal" required />
+          </label>
+          <label>Date
+            <input type="date" id="editDate" required />
+          </label>
+        </div>
+        <label>Note
+          <input type="text" id="editNote" maxlength="80" />
+        </label>
+        <div class="row actions">
+          <button type="button" class="btn ghost" id="editCancel">Cancel</button>
+          <button type="submit" class="btn primary">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
