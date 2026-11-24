@@ -9,7 +9,7 @@ A responsive expense tracker built with plain HTML, CSS and JavaScript, using Fi
 | `index.html` | Page structure |
 | `style.css` | Styling and responsive layout |
 | `app.js` | App logic, Firestore sync, charts |
-| `firebase-config.js` | **Paste your Firebase keys here** |
+| `firebase-config.js` | Firebase project configuration and currency settings |
 
 ## Setup
 
@@ -22,7 +22,7 @@ A responsive expense tracker built with plain HTML, CSS and JavaScript, using Fi
 2. Under **Your apps**, click the **</>** (Web) icon and register an app (any nickname).
 3. Copy the `firebaseConfig` values shown.
 
-### 3. Paste the keys
+### 3. Configure the app
 The Firebase project configuration is in **`firebase-config.js`**. Replace it with your own project values if needed. You can also change `CURRENCY` / `LOCALE` at the bottom of that file.
 
 ### 4. Set Firestore rules
