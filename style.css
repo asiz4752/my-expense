@@ -31,7 +31,7 @@ body {
 /* ---------- Top bar ---------- */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 28px;
+  padding: 10px 28px;
   background: linear-gradient(120deg, #5b6cff 0%, #8b5cf6 100%);
   color: #fff;
   box-shadow: 0 6px 24px rgba(91, 108, 255, 0.25);
@@ -40,7 +40,7 @@ body {
 .brand h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
 .brand .muted { color: rgba(255,255,255,0.8); font-size: 0.85rem; }
 .logo {
-  width: 46px; height: 46px; display: grid; place-items: center;
+  width: 40px; height: 40px; display: grid; place-items: center;
   background: rgba(255,255,255,0.18); border-radius: 14px; font-size: 1.5rem;
 }
 .status {
@@ -70,7 +70,7 @@ body {
 .card h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.01em; }
 
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-.stat { position: relative; overflow: hidden; }
+.stat { position: relative; overflow: hidden; padding: 16px 18px; }
 .stat:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
 .stat::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
@@ -81,8 +81,12 @@ body {
 .stat.remaining { --accent: var(--primary); }
 .stat.last { --accent: var(--amber); }
 .stat-head { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.stat.income .stat-head { color: #047857; }
+.stat.spent .stat-head { color: #b91c1c; }
+.stat.remaining .stat-head { color: #4655e0; }
+.stat.last .stat-head { color: #b45309; }
 .chip-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, white); font-size: 1rem; }
-.stat-value { font-size: 1.85rem; font-weight: 800; margin: 14px 0 6px; letter-spacing: -0.03em; }
+.stat-value { font-size: 1.85rem; font-weight: 800; margin: 8px 0 4px; letter-spacing: -0.03em; }
 .stat-sub { font-size: 0.82rem; color: var(--muted); min-height: 1.2em; }
 .stat.remaining.negative .stat-value { color: var(--red); }
 .stat.remaining.warning .stat-value { color: var(--amber); }
@@ -204,7 +208,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px 
   .grid-2 { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
-  .topbar { padding: 14px 16px; }
+  .topbar { padding: 8px 16px; }
   .container { padding: 16px 12px 50px; }
   .cards { grid-template-columns: 1fr; gap: 12px; }
   .hl { grid-template-columns: 1fr; }

@@ -198,8 +198,8 @@ function renderAll() {
   const today = now.getDate();
 
   $("#monthLabel").textContent =
-    now.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) +
-    " · " + now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+    now.toLocaleDateString("en-GB", { weekday: "long" }) + " " +
+    now.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
   const cur = expenses.filter((e) => e.date.startsWith(curKey) && e.date <= todayStr);
   const prev = expenses.filter((e) => e.date.startsWith(prevKey));
