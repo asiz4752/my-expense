@@ -81,6 +81,58 @@ let expenses = [];      // { id, category, amount, date, note }
 let incomes = {};       // { "YYYY-MM": amount }
 let chart = null;
 let editingId = null;
+const EXPANDED_DATES_KEY = "myExpense.expandedDates";
+
+function loadExpandedDates() {
+  try {
+    const stored = localStorage.getItem(EXPANDED_DATES_KEY);
+    if (!stored) return new Set();
+    const dates = JSON.parse(stored);
+    if (!Array.isArray(dates) || dates.some((date) => typeof date !== "string")) {
+      throw new TypeError("Stored expanded dates must be an array of strings.");
+    }
+    return new Set(dates);
+  } catch (error) {
+    console.error("Could not load expanded dates.", error);
+    toast("Could not restore expanded dates.", true);
+    return new Set();
+  }
+}
+
+let expandedDates = loadExpandedDates();
+
+function saveExpandedDates() {
+  try {
+    localStorage.setItem(EXPANDED_DATES_KEY, JSON.stringify([...expandedDates]));
+  } catch (error) {
+    console.error("Could not save expanded dates.", error);
+    toast("Could not save expanded dates.", true);
+  }
+}
+
+function syncDayGroup(group) {
+  const expanded = expandedDates.has(group.dataset.date);
+  group.querySelector("[data-day-toggle]").setAttribute("aria-expanded", String(expanded));
+  group.querySelector(".day-chevron").textContent = expanded ? "−" : "+";
+  group.querySelector(".day-entries").hidden = !expanded;
+}
+
+function setDayExpanded(date, expanded) {
+  if (expanded) expandedDates.add(date);
+  else expandedDates.delete(date);
+  saveExpandedDates();
+
+  const group = [...$("#dayList").querySelectorAll(".day-group")]
+    .find((item) => item.dataset.date === date);
+  if (group) syncDayGroup(group);
+}
+
+function setAllDaysExpanded(expanded) {
+  const groups = [...$("#dayList").querySelectorAll(".day-group")];
+  expandedDates = new Set(expanded ? groups.map((group) => group.dataset.date) : []);
+  saveExpandedDates();
+  groups.forEach(syncDayGroup);
+}
 
 /* ============================================================
    Category <select> handling
@@ -221,20 +273,25 @@ function renderHighLow(entries, spent) {
   else set("low", `${catIcon(ln)} ${esc(ln)}`, money(la), `${((la / spent) * 100).toFixed(0)}% of this month's spending`);
 }
 
-// Shared state read by the doughnut's center-label plugin
-const centerState = { empty: true, spent: 0 };
-const centerText = {
-  id: "centerText",
-  afterDraw(c) {
-    if (centerState.empty) return;
-    const { ctx, chartArea: a } = c;
+const valueLabels = {
+  id: "valueLabels",
+  afterDatasetsDraw(chartInstance) {
+    const dataset = chartInstance.data.datasets[0];
+    if (!dataset) return;
+
+    const { ctx } = chartInstance;
+    const bars = chartInstance.getDatasetMeta(0).data;
     ctx.save();
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    const cx = (a.left + a.right) / 2, cy = (a.top + a.bottom) / 2;
-    ctx.fillStyle = "#7a8296"; ctx.font = "600 12px Inter, sans-serif";
-    ctx.fillText("Total spent", cx, cy - 12);
-    ctx.fillStyle = "#1e2433"; ctx.font = "800 18px Inter, sans-serif";
-    ctx.fillText(money(centerState.spent), cx, cy + 9);
+    ctx.font = "600 11px Inter, sans-serif";
+    ctx.fillStyle = "#4a5168";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    bars.forEach((bar, index) => {
+      const value = Number(dataset.data[index]);
+      if (!Number.isFinite(value)) return;
+      const { x, y } = bar.getProps(["x", "y"], true);
+      ctx.fillText(money(value), x, y - 6);
+    });
     ctx.restore();
   }
 };
@@ -245,35 +302,46 @@ function renderChart(entries, spent) {
   const colors = labels.map(catColor);
   const empty = !entries.length;
   $("#chartEmpty").classList.toggle("hidden", !empty);
-
-  centerState.empty = empty;
-  centerState.spent = spent;
+  $(".chart-wrap").style.height = "320px";
 
   if (chart) {
     chart.data.labels = labels;
-    chart.data.datasets[0].data = empty ? [1] : data;
-    chart.data.datasets[0].backgroundColor = empty ? ["#e6e9f2"] : colors;
+    chart.data.datasets[0].data = data;
+    chart.data.datasets[0].backgroundColor = colors;
     chart.update();
   } else {
     chart = new Chart($("#catChart"), {
-      type: "doughnut",
-      data: { labels, datasets: [{ data: empty ? [1] : data, backgroundColor: empty ? ["#e6e9f2"] : colors, borderWidth: 3, borderColor: "#fff", hoverOffset: 8 }] },
+      type: "bar",
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 6, maxBarThickness: 42 }] },
       options: {
-        maintainAspectRatio: false, cutout: "68%",
+        maintainAspectRatio: false,
+        layout: { padding: { top: 12 } },
         plugins: {
           legend: { display: false },
           tooltip: {
             enabled: true,
             callbacks: {
               label: (ctx) => {
-                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                return ` ${ctx.label}: ${money(ctx.parsed)} (${((ctx.parsed / total) * 100).toFixed(1)}%)`;
+                const total = ctx.dataset.data.reduce((sum, value) => sum + Number(value || 0), 0);
+                return ` ${money(ctx.parsed.y)} (${(total ? (ctx.parsed.y / total) * 100 : 0).toFixed(1)}%)`;
               }
             }
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 }
+          },
+          y: {
+            beginAtZero: true,
+            grace: "18%",
+            grid: { color: "#eef0f6" },
+            ticks: { callback: (value) => money(value) }
           }
         }
       },
-      plugins: [centerText]
+      plugins: [valueLabels]
     });
   }
 
@@ -296,6 +364,7 @@ function renderDayList(cur, todayStr, spent) {
   box.innerHTML = days.map((d) => {
     const list = groups[d].sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
     const label = parseDate(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    const expanded = expandedDates.has(d);
     const rows = list.map((e) => {
       const c = catColor(e.category);
       return `
@@ -313,14 +382,21 @@ function renderDayList(cur, todayStr, spent) {
         </div>`;
     }).join("");
     return `
-      <div class="day-group">
-        <div class="day-head">
-          <span>${label}${d === todayStr ? '<span class="today-tag">TODAY</span>' : ""}</span>
+      <div class="day-group" data-date="${esc(d)}">
+        <button type="button" class="day-head" data-day-toggle aria-expanded="${expanded}">
+          <span class="day-title">
+            <span>${label}${d === todayStr ? '<span class="today-tag">TODAY</span>' : ""}</span>
+            <span class="day-chevron" aria-hidden="true">${expanded ? "−" : "+"}</span>
+          </span>
           <span class="day-total">${money(sum(list))}</span>
-        </div>${rows}
+        </button>
+        <div class="day-entries" ${expanded ? "" : "hidden"}>${rows}</div>
       </div>`;
   }).join("");
 }
+
+$("#expandAllDays").addEventListener("click", () => setAllDaysExpanded(true));
+$("#collapseAllDays").addEventListener("click", () => setAllDaysExpanded(false));
 
 /* ============================================================
    Add expense
@@ -330,10 +406,10 @@ const expCat = $("#expCategory");
 function resetExpenseForm() {
   $("#expAmount").value = "";
   $("#expNote").value = "";
-  $("#expDate").value = toDateStr(new Date());
   $("#expDate").max = toDateStr(new Date());
   fillCategoryOptions();
 }
+$("#expDate").value = toDateStr(new Date());
 resetExpenseForm();
 
 $("#expenseForm").addEventListener("submit", async (ev) => {
@@ -341,17 +417,19 @@ $("#expenseForm").addEventListener("submit", async (ev) => {
   if (!db) return toast("Add your Firebase config first.", true);
   const category = resolveCategory(expCat);
   const amount = parseFloat($("#expAmount").value);
+  const expenseDate = $("#expDate").value;
   if (!category || !(amount > 0)) return toast("Enter a valid category and amount.", true);
 
   const btn = $("#expSubmit"); btn.disabled = true;
   try {
     await addDoc(collection(db, "expenses"), {
       category, amount,
-      date: $("#expDate").value,
+      date: expenseDate,
       note: $("#expNote").value.trim(),
       createdAtMs: Date.now(),
       createdAt: serverTimestamp()
     });
+    setDayExpanded(expenseDate, true);
     toast("Expense added ✓");
     resetExpenseForm();
   } catch (e) {
@@ -389,8 +467,14 @@ $("#incomeForm").addEventListener("submit", async (ev) => {
 const editCat = $("#editCategory");
 
 $("#dayList").addEventListener("click", async (ev) => {
+  const dayToggle = ev.target.closest("[data-day-toggle]");
   const editBtn = ev.target.closest("[data-edit]");
   const delBtn = ev.target.closest("[data-del]");
+  if (dayToggle) {
+    const date = dayToggle.closest(".day-group").dataset.date;
+    setDayExpanded(date, !expandedDates.has(date));
+    return;
+  }
   if (editBtn) openEdit(editBtn.dataset.edit);
   if (delBtn) {
     const e = expenses.find((x) => x.id === delBtn.dataset.del);
@@ -423,11 +507,13 @@ $("#editForm").addEventListener("submit", async (ev) => {
   if (!editingId) return;
   const category = resolveCategory(editCat);
   const amount = parseFloat($("#editAmount").value);
+  const expenseDate = $("#editDate").value;
   if (!category || !(amount > 0)) return toast("Enter a valid category and amount.", true);
   try {
     await updateDoc(doc(db, "expenses", editingId), {
-      category, amount, date: $("#editDate").value, note: $("#editNote").value.trim()
+      category, amount, date: expenseDate, note: $("#editNote").value.trim()
     });
+    setDayExpanded(expenseDate, true);
     toast("Expense updated ✓");
     closeEdit();
   } catch (e) { console.error(e); toast("Update failed.", true); }

@@ -132,7 +132,13 @@
     <section class="card">
       <div class="list-head">
         <h2>🗓️ Day-by-Day Expenses</h2>
-        <span class="muted" id="listSummary"></span>
+        <div class="list-controls">
+          <span class="muted" id="listSummary"></span>
+          <div class="list-actions">
+            <button type="button" class="list-control" id="expandAllDays">Expand All</button>
+            <button type="button" class="list-control" id="collapseAllDays">Collapse All</button>
+          </div>
+        </div>
       </div>
       <div id="dayList" class="day-list"></div>
     </section>

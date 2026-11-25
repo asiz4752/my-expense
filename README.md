@@ -61,6 +61,6 @@ The app listens to last month and this month's expenses in real time. Open it on
 - Monthly income per month, with remaining balance, a usage bar and a "safe to spend per day" figure
 - Last month's total, with a same-period comparison so the comparison is fair mid-month
 - Highest and lowest spending category, with their share of the total
-- Doughnut chart with percentages and a colour-coded legend
-- Day-by-day grouped list with daily totals, newest day first
+- Category bar chart with spending amounts displayed above each category, percentages and a colour-coded legend
+- Collapsible day-by-day list with saved expanded dates, Expand All / Collapse All controls, and automatic expansion after adding or editing expenses
 - Mobile-friendly layout
